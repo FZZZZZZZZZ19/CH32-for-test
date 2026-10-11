@@ -1,4 +1,4 @@
-# 构建、烧录与测试说明
+﻿# 构建、烧录与测试说明
 
 > 工程：`CH32V307VCT`（CH32V307VCT6 + 逐飞 SeekFree 开源库 V3.7.2 + 一份考核固件）
 > 目标端工具链：MounRiver Studio 2（内置 RISC-V GCC）或独立 xPack 工具链
@@ -43,11 +43,11 @@ sources   : 100
 errors    : 0
 warnings  : 0
 text      data    bss     dec     hex
-46584     304     4140    51028   c754     obj/CH32V307VCT.elf
+46792     304     4144    51240   c828     obj/CH32V307VCT.elf
 ```
 
-* Flash：46584 + 304 ≈ 45.8KB（Link.ld 给 256KB）
-* RAM：data 304 + bss 4140 ≈ 4.3KB（Link.ld 给 32KB，剩余为栈/堆）
+* Flash：46792 + 304 ≈ 45.8KB（Link.ld 给 256KB）
+* RAM：data 304 + bss 4144 ≈ 4.3KB（Link.ld 给 32KB，剩余为栈/堆）
 
 > 若换用其它工具链或改 `Ld/Link.ld` 的 FLASH/RAM 分区，**必须同步修改** `User/system_ch32v30x.c`
 > 里的分区常量，否则 Flash 读写地址会算错。

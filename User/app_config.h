@@ -94,5 +94,6 @@ typedef enum
 #define APP_LONG_PRESS_MS           1000u       /* 长按判定 */
 #define APP_REPEAT_MS               250u        /* 长按后的连发周期 */
 #define APP_DEBOUNCE_MS             20u         /* 按键消抖时间（2 次 10ms 采样） */
+#define APP_GESTURE_DOUBLE_MS       400u        /* 手势：两次短按间隔 <= 该值 = 双击（返回上一级） */
 
 #endif

@@ -45,6 +45,7 @@ static uint32_t s_last_key_ms  = 0u;
 static uint32_t s_last_ui_ms   = 0u;
 static uint32_t s_last_demo_ms = 0u;
 static uint32_t s_last_echo_ms = 0u;
+static uint32_t s_last_click_ms = 0u;       /* 双击判定（存 now+1，0 表示"没有上一次短按"） */
 
 static uint8_t  s_demo_click    = 0u;
 static uint8_t  s_demo_long     = 0u;
@@ -175,73 +176,170 @@ static void app_main_run_action (uint32_t now_ms)
 }
 
 /*--------------------------------------------------- 按键事件分发 -----------------------------------------------*/
-static void app_main_handle_event (const app_key_event_t *ev)
+/* 板上"到底有几个可用按键"取决于实物装配（原理图是 74HC148 + 五向开关，实物板也可能只焊了 1~2 个轻触键），
+ * 所以菜单态同时给出两条通路，保证任意 1~2 个键都能走完三级菜单：
+ *   ① 手势：短按 = 上/下翻项（编辑态 = 加/减）；长按 = 确定（进入下一级 / 提交编辑并写 flash）；双击 = 返回
+ *   ② 74HC148 原始语义：中键 = 确定、左 = 返回、KEY1 = 上、KEY2 / 摇杆下 = 下、摇杆右 = 列表态确定 / 编辑态加
+ * 注意 app_menu.c 里列表态用 up/down、编辑态用 inc/dec（up 与 inc 都会加），所以这里按深度分派 */
+static void app_main_menu_input (const app_key_event_t *ev, uint32_t now_ms, uint8_t gesture_back, uint8_t gesture_enter)
 {
     app_menu_input_t in;
+    uint8_t          editing = (app_menu_depth(&s_menu) >= 3u) ? 1u : 0u;   /* 1=主菜单 2=列表 3=编辑 */
+
+    in.now_ms = now_ms;
+    in.up     = 0u;
+    in.down   = 0u;
+    in.enter  = 0u;
+    in.back   = 0u;
+    in.inc    = 0u;
+    in.dec    = 0u;
+
+    if(0u != gesture_back)
+    {
+        in.back  = 1u;                                  /* 双击 = 返回上一级 */
+    }
+    else if(0u != gesture_enter)
+    {
+        in.enter = 1u;                                  /* 长按 = 确定 */
+    }
+    else if(APP_KEY_ENTER == ev->key)
+    {
+        in.enter = 1u;                                  /* 五向中键 = 确定 */
+    }
+    else if(APP_KEY_BACK == ev->key)
+    {
+        in.back  = 1u;                                  /* 五向左键 = 返回 */
+    }
+    else if(0u != editing)
+    {
+        if((APP_KEY_UP == ev->key) || (APP_KEY_INC == ev->key))
+        {
+            in.inc = 1u;
+        }
+        else if((APP_KEY_DOWN == ev->key) || (APP_KEY_DEC == ev->key))
+        {
+            in.dec = 1u;
+        }
+    }
+    else
+    {
+        if(APP_KEY_UP == ev->key)
+        {
+            in.up = 1u;                                 /* KEY1 = 光标上移 */
+        }
+        else if((APP_KEY_DOWN == ev->key) || (APP_KEY_DEC == ev->key))
+        {
+            in.down = 1u;                               /* KEY2 / 摇杆下 = 光标下移（KEY2 不再"按了没反应"） */
+        }
+        else if(APP_KEY_INC == ev->key)
+        {
+            in.enter = 1u;                              /* 摇杆右 = 在列表态当确定，更好按 */
+        }
+    }
+
+    app_menu_apply(&s_menu, &app_params, &in);
+    s_menu.event_count ++;
+}
+
+static void app_main_menu_long_press (const app_key_event_t *ev, uint32_t now_ms)
+{
+    uint8_t editing = (app_menu_depth(&s_menu) >= 3u) ? 1u : 0u;
+
+    if(APP_KEY_BACK == ev->key)
+    {
+        if(0u != editing)
+        {
+            app_main_menu_input(ev, now_ms, 1u, 0u);            /* 编辑态长按左键 = 取消编辑 */
+        }
+        else
+        {
+            app_menu_goto_main(&s_menu);                        /* 列表态长按左键 = 直接回主菜单 */
+            app_ui_toast("MAIN MENU", now_ms);
+        }
+        return;
+    }
+
+    app_main_menu_input(ev, now_ms, 0u, 1u);                    /* 其余键长按 = 确定 / 提交编辑 */
+
+    if(0u != editing)
+    {
+        app_params_save();                                      /* 提交后立刻落 flash：断电重启参数还在 */
+        app_ui_toast("PARAM SAVED", now_ms);
+    }
+}
+
+static void app_main_handle_event (const app_key_event_t *ev)
+{
+    uint32_t now_ms;
+    uint8_t  dbl = 0u;
 
     if(APP_KEY_NONE == ev->key)
     {
         return;
     }
 
+    now_ms = app_time_now();
+
+    /* 双击判定：两次短按间隔 <= APP_GESTURE_DOUBLE_MS 视为"返回"（存 now+1，0 = 没有上一次） */
+    if(0u != ev->click)
+    {
+        uint32_t stamp = now_ms + 1u;
+
+        if((0u != s_last_click_ms) && ((stamp - s_last_click_ms) <= APP_GESTURE_DOUBLE_MS))
+        {
+            dbl             = 1u;
+            s_last_click_ms = 0u;                               /* 消费掉，三击不会连发两次返回 */
+        }
+        else
+        {
+            s_last_click_ms = stamp;
+        }
+    }
+
     if(APP_MODE_DEMO == s_mode)
     {
-        /* 演示态：BACK 退出到菜单，ENTER 切下一个演示，其余按键给"看得见/听得到"的反馈
-         * 目的：演示功能本身只消费 ctx->click，若不额外反馈，现场会误以为按键坏了 */
-        if((APP_KEY_BACK == ev->key) && ((0u != ev->click) || (0u != ev->long_press)))
+        /* 演示态：短按留给演示功能自己消费，长按切下一个演示，双击退出到菜单
+         * （这样即使板上只有 1 个键，也能"看演示 -> 换演示 -> 回菜单"） */
+        if(0u != dbl)
         {
             app_main_exit_demo();
             return;
         }
-        if((0u != ev->click) || (0u != ev->long_press))
-        {
-            uint32_t now_ms = app_time_now();
-
-            app_buzzer_beep(app_params.buzzer_freq_hz, 40u, now_ms);    /* 每按一次响一下 */
-            if(APP_KEY_ENTER == ev->key)
-            {
-                app_main_enter_demo((uint8_t)((app_demo_id() + 1u) % APP_DEMO_NUM), now_ms);
-                return;
-            }
-        }
-        if(0u != ev->click)
-        {
-            s_demo_click = 1u;
-        }
         if(0u != ev->long_press)
         {
             s_demo_long = 1u;
+            app_buzzer_beep(app_params.buzzer_freq_hz, 40u, now_ms);
+            app_main_enter_demo((uint8_t)((app_demo_id() + 1u) % APP_DEMO_NUM), now_ms);
+            return;
+        }
+        if((0u != ev->click) && (APP_KEY_BACK == ev->key))
+        {
+            app_main_exit_demo();
+            return;
+        }
+        if(0u != ev->click)
+        {
+            app_buzzer_beep(app_params.buzzer_freq_hz, 30u, now_ms);    /* 每按一次响一下 */
+            s_demo_click = 1u;
         }
         return;
     }
 
-    /* 菜单态：长按是全局快捷键 */
+    /* 菜单态 */
     if(0u != ev->long_press)
     {
-        if(APP_KEY_DEC == ev->key)              /* KEY2 长按 = 保存参数 */
-        {
-            app_params_save();
-            app_ui_toast("PARAMS SAVED", app_time_now());
-        }
-        else if(APP_KEY_BACK == ev->key)        /* 左键长按 = 直接回主菜单 */
-        {
-            app_menu_goto_main(&s_menu);
-        }
+        app_buzzer_beep(app_params.buzzer_freq_hz, 30u, now_ms);
+        app_main_menu_long_press(ev, now_ms);
         return;
     }
 
     if((0u != ev->click) || (0u != ev->repeat))
     {
-        in.now_ms = app_time_now();
-        in.up     = (APP_KEY_UP    == ev->key) ? 1u : 0u;
-        in.down   = (APP_KEY_DOWN  == ev->key) ? 1u : 0u;
-        in.enter  = (APP_KEY_ENTER == ev->key) ? 1u : 0u;
-        in.back   = (APP_KEY_BACK  == ev->key) ? 1u : 0u;
-        in.inc    = (APP_KEY_INC   == ev->key) ? 1u : 0u;
-        in.dec    = (APP_KEY_DEC   == ev->key) ? 1u : 0u;
-
-        app_menu_apply(&s_menu, &app_params, &in);
-        s_menu.event_count ++;
+        app_main_menu_input(ev, now_ms, dbl, 0u);
+    }
+    else if(0u != ev->press)
+    {
+        app_buzzer_beep(app_params.buzzer_freq_hz, 15u, now_ms);        /* 按下就响一声：证明按键被读到 */
     }
 }
 
