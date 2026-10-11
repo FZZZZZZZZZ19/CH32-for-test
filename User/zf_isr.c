@@ -44,6 +44,11 @@
 
 #include "zf_common_headfile.h"
 
+/* 应用层中断钩子：系统节拍 / 定时器中断内 LED 翻转 / 按键外部中断计数 */
+#include "app_time.h"
+#include "app_led.h"
+#include "app_port.h"
+
 void USART1_IRQHandler(void) __attribute__((interrupt()));
 void USART2_IRQHandler(void) __attribute__((interrupt()));
 void USART3_IRQHandler(void) __attribute__((interrupt()));
@@ -229,6 +234,8 @@ void EXTI9_5_IRQHandler(void)
     {
         EXTI_ClearITPendingBit(EXTI_Line8);
 
+        app_port_exti_key_isr();    /* PD8 = 74HC148 的 A0：双边沿计数 + 时间戳（细则 9） */
+
     }
     if(SET == EXTI_GetITStatus(EXTI_Line9))
     {
@@ -344,6 +351,8 @@ void TIM6_IRQHandler(void)
     {
        TIM_ClearITPendingBit(TIM6, TIM_IT_Update );
 
+       app_time_isr_tick();         /* 1ms 系统节拍（细则 6 的时基） */
+       app_led_isr_tick();          /* 定时器中断里翻转 LED5（细则 6） */
     }
 }
 
