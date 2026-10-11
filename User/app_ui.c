@@ -123,6 +123,18 @@ void app_ui_kv (uint8_t row, const char *key, uint32_t value, uint8_t digits)
     app_screen_text(0u, row, buf);
 }
 
+/* 按键回显：演示态下让"按了哪个键"立刻可见（最长 12 列，绝不触发 409 断言） */
+void app_ui_key_echo (uint8_t row, uint8_t code, const char *name)
+{
+    char buf[APP_SCREEN_TEXT_BUF];
+
+    ui_str_copy(buf, (uint8_t)sizeof(buf), "KEY ");
+    ui_str_append(buf, (uint8_t)sizeof(buf), (0 != name) ? name : "NONE");
+    ui_str_append(buf, (uint8_t)sizeof(buf), " C");
+    ui_u32_append(buf, (uint8_t)sizeof(buf), code, 1u);
+    app_screen_text(0u, row, buf);
+}
+
 void app_ui_toast (const char *text, uint32_t now_ms)
 {
     ui_str_copy(s_toast, APP_UI_TOAST_LEN, text);
@@ -153,15 +165,16 @@ static void app_ui_draw_status (const app_ui_status_t *st)
         return;
     }
 
-    /* 状态栏必须 <= 16 列（128 像素 / 8 像素）："#1 L15 E999 T999" 刚好 16 列 */
+    /* 状态栏必须 <= 16 列（128 像素 / 8 像素）："#1 L15 E999 C7" 最长 14 列
+     * C = 74HC148 原始三位编码（7=无键），按键时肉眼可见变化，用于现场诊断按键链路 */
     ui_str_copy(buf, (uint8_t)sizeof(buf), "#");
     ui_u32_append(buf, (uint8_t)sizeof(buf), st->task_no % 10u, 1u);
     ui_str_append(buf, (uint8_t)sizeof(buf), " L");
     ui_u32_append(buf, (uint8_t)sizeof(buf), st->led_mask, 2u);
     ui_str_append(buf, (uint8_t)sizeof(buf), " E");
     ui_u32_append(buf, (uint8_t)sizeof(buf), st->exti_count % 1000u, 3u);
-    ui_str_append(buf, (uint8_t)sizeof(buf), " T");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->isr_toggles % 1000u, 3u);
+    ui_str_append(buf, (uint8_t)sizeof(buf), " C");
+    ui_u32_append(buf, (uint8_t)sizeof(buf), st->key_code % 8u, 1u);
 
     app_screen_row_text(APP_UI_ROW_STATUS, APP_COLOR_RED, buf);
 }

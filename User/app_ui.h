@@ -33,11 +33,16 @@ typedef struct
     uint32_t uptime_ms;
 } app_ui_status_t;
 
+/* 演示态专用的按键回显行（第 1 行，演示功能不用这一行）：按任意键都会立刻更新
+ * 格式 "KEY <名字> C<原始编码>"，最长 "KEY ENTER C7" = 12 列，安全 */
+#define APP_UI_ROW_ECHO             1u
+
 void app_ui_init      (void);
 void app_ui_render    (const app_menu_t *m, const app_params_t *p, const app_ui_status_t *st);
 void app_ui_demo_frame(const char *title, const app_ui_status_t *st);
 void app_ui_line      (uint8_t row, const char *text);
 void app_ui_kv        (uint8_t row, const char *key, uint32_t value, uint8_t digits);
+void app_ui_key_echo  (uint8_t row, uint8_t code, const char *name);
 void app_ui_toast     (const char *text, uint32_t now_ms);
 
 #endif

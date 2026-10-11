@@ -43,7 +43,7 @@
 /*--------------------------------------------------- 参数定义 ---------------------------------------------------*/
 typedef enum
 {
-    APP_PARAM_BOOT_DEMO = 0,            /* 上电进入的功能编号 */
+    APP_PARAM_BOOT_DEMO = 0,            /* 上电行为：0=停在三级菜单，1..11=直接进对应演示 */
     APP_PARAM_BLINK_MS,                 /* 定时器中断控制 LED 的周期 */
     APP_PARAM_PWM_FREQ,                 /* 三路 PWM 频率 */
     APP_PARAM_PWM_DUTY,                 /* 三路 PWM 占空比（千分比） */
@@ -53,9 +53,10 @@ typedef enum
     APP_PARAM_FLOW_SPEED,               /* 流水灯速度等级 1..10 */
 } app_param_id_enum;
 
-/* 参数取值范围（纯逻辑模块与菜单共用） */
+/* 参数取值范围（纯逻辑模块与菜单共用）
+ * BOOT DEMO：0 = 上电停在三级菜单（默认，便于现场按键交互），1..APP_DEMO_NUM = 上电直接进第 (值-1) 号演示 */
 #define APP_PARAM_BOOT_DEMO_MIN     0u
-#define APP_PARAM_BOOT_DEMO_MAX     (APP_DEMO_NUM - 1u)
+#define APP_PARAM_BOOT_DEMO_MAX     (APP_DEMO_NUM)
 #define APP_PARAM_BLINK_MIN         100u
 #define APP_PARAM_BLINK_MAX         2000u
 #define APP_PARAM_BLINK_STEP        50u

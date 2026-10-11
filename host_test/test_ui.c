@@ -166,6 +166,23 @@ int test_ui (void)
     render_page(&menu, &params, &st);
     CHECK(strlen(g_stub_row_text[8]) <= 16u);
 
+    /* 6) 演示态的按键回显行 + 状态栏（含原始编码 C）：8 种编码 x 全部按键名字都要 <= 16 列 */
+    for(i = 0u; i < 8u; i ++)
+    {
+        app_ui_status_t echo_st = st;
+
+        echo_st.key_code   = i;
+        echo_st.exti_count = 999u;
+        echo_st.led_mask   = 15u;
+        echo_st.task_no    = 9u;
+
+        host_screen_reset();
+        app_ui_key_echo(APP_UI_ROW_ECHO, i, app_key_name(app_key_code_to_key(i)));
+        app_ui_demo_frame("WCH BOARD", &echo_st);
+        check_rows_fit();
+        CHECK(g_stub_row_valid[APP_UI_ROW_ECHO] != 0u);     /* 回显行一定被画出来 */
+    }
+
     /* 记录本次遍历里最长的一行，便于答辩时说明余量 */
     CHECK(s_worst_width > 0u);
     CHECK(s_worst_width <= 16u);

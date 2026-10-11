@@ -44,6 +44,7 @@ static app_mode_enum    s_mode = APP_MODE_MENU;
 static uint32_t s_last_key_ms  = 0u;
 static uint32_t s_last_ui_ms   = 0u;
 static uint32_t s_last_demo_ms = 0u;
+static uint32_t s_last_echo_ms = 0u;
 
 static uint8_t  s_demo_click    = 0u;
 static uint8_t  s_demo_long     = 0u;
@@ -185,11 +186,23 @@ static void app_main_handle_event (const app_key_event_t *ev)
 
     if(APP_MODE_DEMO == s_mode)
     {
-        /* 演示态：BACK 短按退出到菜单，其它事件交给演示功能 */
+        /* 演示态：BACK 退出到菜单，ENTER 切下一个演示，其余按键给"看得见/听得到"的反馈
+         * 目的：演示功能本身只消费 ctx->click，若不额外反馈，现场会误以为按键坏了 */
         if((APP_KEY_BACK == ev->key) && ((0u != ev->click) || (0u != ev->long_press)))
         {
             app_main_exit_demo();
             return;
+        }
+        if((0u != ev->click) || (0u != ev->long_press))
+        {
+            uint32_t now_ms = app_time_now();
+
+            app_buzzer_beep(app_params.buzzer_freq_hz, 40u, now_ms);    /* 每按一次响一下 */
+            if(APP_KEY_ENTER == ev->key)
+            {
+                app_main_enter_demo((uint8_t)((app_demo_id() + 1u) % APP_DEMO_NUM), now_ms);
+                return;
+            }
         }
         if(0u != ev->click)
         {
@@ -275,10 +288,11 @@ void app_main_init (void)
     now_ms = app_time_now();
     app_ui_toast("READY", now_ms);
 
-    /* 上电进入 flash 里保存的功能编号（默认 0 = OVERVIEW），按 BACK 回到菜单 */
-    if(app_params.boot_demo < APP_DEMO_NUM)
+    /* 上电行为：boot_demo = 0（默认）停在三级菜单，方便现场用按键交互；
+     * 1..APP_DEMO_NUM 表示上电直接进第 (boot_demo-1) 号演示，两者都不需要重新烧录 */
+    if((app_params.boot_demo > 0u) && (app_params.boot_demo <= APP_DEMO_NUM))
     {
-        app_main_enter_demo((uint8_t)app_params.boot_demo, now_ms);
+        app_main_enter_demo((uint8_t)(app_params.boot_demo - 1u), now_ms);
     }
 }
 
@@ -313,6 +327,15 @@ void app_main_loop (void)
     /* 4. 演示态跑演示功能，菜单态画界面 */
     if(APP_MODE_DEMO == s_mode)
     {
+        /* 演示态也要同步状态：每 100ms 刷新按键回显行 + 状态栏（E=EXTI 计数、C=原始编码）
+         * 现场按任意键都能立刻在屏幕上看到编码/名字变化，用于区分"按键没读到"还是"演示不响应" */
+        if((uint32_t)(now_ms - s_last_echo_ms) >= APP_TASK_DEMO_MS)
+        {
+            s_last_echo_ms = now_ms;
+            app_main_status_sync(now_ms);
+            app_ui_key_echo(APP_UI_ROW_ECHO, s_status.key_code, app_key_name((app_key_enum)s_status.key_id));
+        }
+
         if((uint32_t)(now_ms - s_last_demo_ms) >= APP_TASK_DEMO_MS)
         {
             app_demo_ctx_t ctx;

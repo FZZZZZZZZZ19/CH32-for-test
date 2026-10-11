@@ -43,11 +43,11 @@ sources   : 100
 errors    : 0
 warnings  : 0
 text      data    bss     dec     hex
-46360     304     4136    50800   c670     obj/CH32V307VCT.elf
+46584     304     4140    51028   c754     obj/CH32V307VCT.elf
 ```
 
-* Flash：46360 + 304 ≈ 45.6KB（Link.ld 给 256KB）
-* RAM：data 304 + bss 4136 ≈ 4.3KB（Link.ld 给 32KB，剩余为栈/堆）
+* Flash：46584 + 304 ≈ 45.8KB（Link.ld 给 256KB）
+* RAM：data 304 + bss 4140 ≈ 4.3KB（Link.ld 给 32KB，剩余为栈/堆）
 
 > 若换用其它工具链或改 `Ld/Link.ld` 的 FLASH/RAM 分区，**必须同步修改** `User/system_ch32v30x.c`
 > 里的分区常量，否则 Flash 读写地址会算错。
@@ -131,7 +131,7 @@ make -C host_test clean
 ```
 == host unit test : CH32V307VCT6 firmware pure logic ==
 [ OK ] app_crc32 / app_params / app_menu / app_key / app_text / app_ui
----- checks: 2160, failures: 0 ----
+---- checks: 2192, failures: 0 ----
 RESULT: PASS
 ```
 
@@ -144,10 +144,10 @@ RESULT: PASS
 | `host_test/test_menu.c` | 三级层级与深度、光标环绕、进入/退出、参数编辑提交/取消/上下界、开关型参数取反、系统页 5 个动作映射、文本接口 |
 | `host_test/test_key.c` | 74HC148 编码映射、20ms 消抖、短按、长按 1000ms、250ms 连发、无键/忽略码不产生事件、空指针安全 |
 | `host_test/test_text.c` | `app_text_clip()` 边界：截断长度、`'\0'` 收尾、NULL 源、目标缓冲区上限 |
-| `host_test/test_ui.c` | **屏幕上 `zf_device_tft180.c:409` 断言的回归测试**：真实跑 `app_ui_render()`，遍历 MAIN(3)/DEMO(11)/PARAM(8，逐个进三级编辑)/SYSTEM(5)，断言每一行的 `起始列 + 字符数 <= 16`（128 像素 ÷ 8 像素）；状态栏最坏取值 `#1 L15 E999 T999` 正好 16 列 |
+| `host_test/test_ui.c` | **屏幕上 `zf_device_tft180.c:409` 断言的回归测试**：真实跑 `app_ui_render()`，遍历 MAIN(3)/DEMO(11)/PARAM(8，逐个进三级编辑)/SYSTEM(5)，断言每一行的 `起始列 + 字符数 <= 16`（128 像素 ÷ 8 像素）；状态栏最坏取值 `#1 L15 E999 C7` 共 14 列；另测 8 种编码下演示态按键回显行 `KEY ENTER C7`（12 列） |
 
 > 屏幕宽度这条测试的灵敏度已自证：把旧的超宽状态栏（24 字符）临时放回去，测试立刻报 47 处失败；
-> 改回后 2160 项全过。原理见 `docs/DEFENSE.md` 第 6 节"为什么屏幕上会显示 Assert error"。
+> 改回后 2192 项全过。原理见 `docs/DEFENSE.md` 第 6 节"为什么屏幕上会显示 Assert error"。
 
 ---
 

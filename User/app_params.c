@@ -52,7 +52,7 @@ void app_params_defaults (app_params_t *p)
     {
         return;
     }
-    p->boot_demo            = 0u;                       /* OVERVIEW */
+    p->boot_demo            = 0u;                       /* 0 = 上电停在菜单（1..11 = 直接进演示） */
     p->blink_ms             = 200u;
     p->pwm_freq_hz          = 1000u;
     p->pwm_duty_permille    = 500u;                     /* 50% */

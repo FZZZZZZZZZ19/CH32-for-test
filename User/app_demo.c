@@ -160,7 +160,7 @@ static void demo_overview (const app_demo_ctx_t *ctx)
     app_ui_line(5u, "5 PWM C6/D14/D15");
     app_ui_line(6u, "6 TIMER TIM6 1MS");
     app_ui_line(7u, "8 FLASH S63 P0/1");
-    app_ui_kv(8u, "UP", (ctx->now_ms - s_start_ms) / 1000u, 5u);
+    app_ui_kv(8u, "UPTIME", (ctx->now_ms - s_start_ms) / 1000u, 4u);
 
     app_led_set_binary((uint8_t)(((ctx->now_ms - s_start_ms) / 1000u) & 0x0Fu));
 }

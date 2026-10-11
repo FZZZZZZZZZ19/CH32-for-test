@@ -6,7 +6,7 @@
 - **芯片**：CH32V307VCT6（青稞 V4F，RV32IMAFC，256K Flash / 64K SRAM 标称）
 - **已内含**：逐飞科技 CH32V307 开源库 **V3.7.2**（`zf_common` / `zf_driver` / `zf_device` / `zf_components`）
 - **实测构建**：模板原始为 `text 22964 / data 264 / bss 2700`；**加入本文档描述的考核固件后为
-  `text 46360 / data 304 / bss 4136`（sources 101），0 error / 0 warning**
+  `text 46584 / data 304 / bss 4140`（sources 101），0 error / 0 warning**
 
 > 本仓库现在不只是模板：`User\` 下已经落了一份**软件组一轮考核固件** ——
 > 用**一份程序**覆盖细则第 3～11 项（GPIO / 按键 / PWM / 蜂鸣器 / 定时器中断 / SPI 屏 /
@@ -21,8 +21,12 @@
 
 1. 初始化外设 → 应用 Flash 里的参数 → 跑一遍**自检 8 项**（结果同时打在屏幕上和 UART3 日志里）
 2. 停在**三级菜单**主页面：`DEMO` / `PARAMETERS` / `SYSTEM`
+   （参数 `BOOT DEMO = 0` 是默认值；改成 `1..11` 就变成"上电直接进第 `值-1` 号演示"，同一份固件不用重烧）
 
 ### 按键（板上 74HC148 + 五向开关）
+
+物理上是 **7 个开关**——两个轻触键 `SW14`(`KEY1`)、`SW15`(`KEY2`) 加一个五向摇杆 `U/L/D/M/R`——
+它们全部接到 `U15`（`SN74HC148DR` 8→3 优先编码器），只占 MCU 的 `PD8/PB12/PB14` 三根线，共 **6 个可分辨编码**。
 
 | 操作 | 事件 | 菜单里做什么 |
 |---|---|---|
@@ -37,6 +41,9 @@
 
 > ⚠️ 五向开关的"上"在硬件上与"无键"编码相同（`111`，优先编码器 `GS/EO` 未接 MCU），
 > 因此固件用 `KEY1` 承担"上"的职责。原因与真值表见 [`docs/PINMAP.md`](docs/PINMAP.md)。
+
+按键链路是**看得见也听得见**的：状态行末尾的 `C` 是 74HC148 原始编码（无键 `7`，KEY1 `3`、中键 `1`、下 `6`、左 `5`、右 `2`、KEY2 `0`），
+演示态下第 1 行还有 `KEY UP C3` 回显；每按一次键蜂鸣器短鸣 40ms；`EXTI` 计数 `E` 记录 `PD8` 的边沿次数。
 
 ### 功能与细则对应
 
@@ -64,7 +71,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1
 
 :: 主机端单元测试（纯逻辑模块：CRC32 / 参数存储 / 菜单 / 按键状态机）
 powershell -NoProfile -ExecutionPolicy Bypass -File host_test\run_tests.ps1
-::   → ---- checks: 2160, failures: 0 ----  RESULT: PASS
+::   → ---- checks: 2192, failures: 0 ----  RESULT: PASS
 ```
 
 烧写（两条路都实测过）：
@@ -182,7 +189,7 @@ CH32\
 ├── zf_driver\      (32 文件)  逐飞外设驱动层
 ├── zf_device\      (58 文件)  逐飞器件驱动层（含 libzf_device_config.a）
 ├── zf_components\  ( 4 文件)  逐飞应用组件（逐飞助手）
-├── host_test\                 主机端单元测试（PC 上 gcc 直接跑，2160 项断言）
+├── host_test\                 主机端单元测试（PC 上 gcc 直接跑，2192 项断言）
 ├── tools\build.ps1            不开 IDE 的等价编译脚本
 ├── docs\                      DESIGN / PINMAP / BUILD / DEFENSE
 ├── LICENSES\                  第三方许可说明与 GPL-3.0 全文
@@ -307,14 +314,14 @@ git clone --depth 1 https://gitee.com/seekfree/CHV307_Library.git %TEMP%\CHV307
 | 项 | 状态 |
 |---|---|
 | 编译 | ✅ 已在 MounRiver Studio 2 实测通过；考核固件另有 `tools\build.ps1` 实测 `sources 101 / 0 error / 0 warning` |
-| 主机端单元测试 | ✅ CRC32 / 参数存储 / 菜单 / 按键状态机 / 文本裁剪 / 界面行宽 6 组，`checks: 2160, failures: 0` |
+| 主机端单元测试 | ✅ CRC32 / 参数存储 / 菜单 / 按键状态机 / 文本裁剪 / 界面行宽 6 组，`checks: 2192, failures: 0` |
 | 链接（含逐飞预编译库） | ✅ 无 ABI 冲突、无重复定义 |
 | 中断向量表 | ✅ `.vector` 位于 0x4，入口 0x0 |
 | **实际烧写 / 上板运行** | ❌ **未验证**（写这份代码时手上无硬件，所有引脚结论来自原理图判读） |
 | 五向开关"上"方向 | ⚠️ 硬件上与"无键"同编码，不可用（详见 `docs/PINMAP.md`） |
 | 可控 LED | ⚠️ 只有 4 个（LED1–LED4 是电源指示灯） |
 | LTO | 未启用（MounRiver 默认构建不含 LTO） |
-| 32K RAM | ⚠️ 考核固件 bss 4136B，够用；摄像头图像缓冲需重新评估分区 |
+| 32K RAM | ⚠️ 考核固件 bss 4140B，够用；摄像头图像缓冲需重新评估分区 |
 
 ---
 
