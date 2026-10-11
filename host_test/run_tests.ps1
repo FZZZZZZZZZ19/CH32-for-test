@@ -1,7 +1,7 @@
-﻿#---------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------
 # 文件名称          run_tests.ps1
 # 说明              主机端单元测试一键脚本（Windows / PowerShell 5.1+）
-#                   用系统 gcc（C:\mingw64\bin）编译 4 个纯逻辑模块 + 5 个测试文件并运行
+#                   用系统 gcc（C:\mingw64\bin）编译 6 个纯逻辑模块 + 7 个测试文件（含 2 个硬件替身）并运行
 #                   用法：powershell -NoProfile -ExecutionPolicy Bypass -File host_test\run_tests.ps1
 #                   退出码：0 = 全部通过，1 = 有失败，2 = 编译失败
 #---------------------------------------------------------------------------------------------------------------------
@@ -12,9 +12,10 @@ $userDir = Join-Path (Split-Path -Parent $here) 'User'
 $cc      = if ($env:CC) { $env:CC } else { 'gcc' }
 $out     = Join-Path $here 'host_test.exe'
 
-$src  = @('test_main.c', 'test_crc32.c', 'test_params.c', 'test_menu.c', 'test_key.c') |
+$src  = @('test_main.c', 'test_crc32.c', 'test_params.c', 'test_menu.c', 'test_key.c',
+          'test_text.c', 'test_ui.c', 'stub_screen.c', 'stub_time.c') |
         ForEach-Object { Join-Path $here $_ }
-$src += @('app_crc32.c', 'app_params.c', 'app_menu.c', 'app_key.c') |
+$src += @('app_crc32.c', 'app_params.c', 'app_menu.c', 'app_key.c', 'app_text.c', 'app_ui.c') |
         ForEach-Object { Join-Path $userDir $_ }
 
 Write-Host "[host_test] compiler : $cc"

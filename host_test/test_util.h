@@ -41,5 +41,7 @@ int test_crc32  (void);
 int test_params (void);
 int test_menu   (void);
 int test_key    (void);
+int test_text   (void);                         /* app_text_clip：屏幕文本裁剪 */
+int test_ui     (void);                         /* app_ui：每一行必须 <= 16 列（128/8） */
 
 #endif

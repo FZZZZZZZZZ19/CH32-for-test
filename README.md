@@ -6,7 +6,7 @@
 - **芯片**：CH32V307VCT6（青稞 V4F，RV32IMAFC，256K Flash / 64K SRAM 标称）
 - **已内含**：逐飞科技 CH32V307 开源库 **V3.7.2**（`zf_common` / `zf_driver` / `zf_device` / `zf_components`）
 - **实测构建**：模板原始为 `text 22964 / data 264 / bss 2700`；**加入本文档描述的考核固件后为
-  `text 46320 / data 304 / bss 4136`（sources 100），0 error / 0 warning**
+  `text 46360 / data 304 / bss 4136`（sources 101），0 error / 0 warning**
 
 > 本仓库现在不只是模板：`User\` 下已经落了一份**软件组一轮考核固件** ——
 > 用**一份程序**覆盖细则第 3～11 项（GPIO / 按键 / PWM / 蜂鸣器 / 定时器中断 / SPI 屏 /
@@ -60,11 +60,11 @@
 ```cmd
 :: 目标端（等价于 MounRiver Build，不开 IDE）
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1
-::   → sources 100 / errors 0 / warnings 0，产物 obj\CH32V307VCT.elf|.hex|.map
+::   → sources 101 / errors 0 / warnings 0，产物 obj\CH32V307VCT.elf|.hex|.map
 
 :: 主机端单元测试（纯逻辑模块：CRC32 / 参数存储 / 菜单 / 按键状态机）
 powershell -NoProfile -ExecutionPolicy Bypass -File host_test\run_tests.ps1
-::   → ---- checks: 1671, failures: 0 ----  RESULT: PASS
+::   → ---- checks: 2160, failures: 0 ----  RESULT: PASS
 ```
 
 烧写（两条路都实测过）：
@@ -182,7 +182,7 @@ CH32\
 ├── zf_driver\      (32 文件)  逐飞外设驱动层
 ├── zf_device\      (58 文件)  逐飞器件驱动层（含 libzf_device_config.a）
 ├── zf_components\  ( 4 文件)  逐飞应用组件（逐飞助手）
-├── host_test\                 主机端单元测试（PC 上 gcc 直接跑，1671 项断言）
+├── host_test\                 主机端单元测试（PC 上 gcc 直接跑，2160 项断言）
 ├── tools\build.ps1            不开 IDE 的等价编译脚本
 ├── docs\                      DESIGN / PINMAP / BUILD / DEFENSE
 ├── LICENSES\                  第三方许可说明与 GPL-3.0 全文
@@ -306,8 +306,8 @@ git clone --depth 1 https://gitee.com/seekfree/CHV307_Library.git %TEMP%\CHV307
 
 | 项 | 状态 |
 |---|---|
-| 编译 | ✅ 已在 MounRiver Studio 2 实测通过；考核固件另有 `tools\build.ps1` 实测 `sources 100 / 0 error / 0 warning` |
-| 主机端单元测试 | ✅ CRC32 / 参数存储 / 菜单 / 按键状态机 4 组，`checks: 1671, failures: 0` |
+| 编译 | ✅ 已在 MounRiver Studio 2 实测通过；考核固件另有 `tools\build.ps1` 实测 `sources 101 / 0 error / 0 warning` |
+| 主机端单元测试 | ✅ CRC32 / 参数存储 / 菜单 / 按键状态机 / 文本裁剪 / 界面行宽 6 组，`checks: 2160, failures: 0` |
 | 链接（含逐飞预编译库） | ✅ 无 ABI 冲突、无重复定义 |
 | 中断向量表 | ✅ `.vector` 位于 0x4，入口 0x0 |
 | **实际烧写 / 上板运行** | ❌ **未验证**（写这份代码时手上无硬件，所有引脚结论来自原理图判读） |

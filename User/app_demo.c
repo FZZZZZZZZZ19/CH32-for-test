@@ -157,7 +157,7 @@ static void demo_overview (const app_demo_ctx_t *ctx)
     app_ui_line(2u, "1 FIRMWARE 1.0.0");
     app_ui_line(3u, "2 LED  PD1/PA15");
     app_ui_line(4u, "3 KEYS 74HC148");
-    app_ui_line(5u, "5 PWM  C6/D14/D15");
+    app_ui_line(5u, "5 PWM C6/D14/D15");
     app_ui_line(6u, "6 TIMER TIM6 1MS");
     app_ui_line(7u, "8 FLASH S63 P0/1");
     app_ui_kv(8u, "UP", (ctx->now_ms - s_start_ms) / 1000u, 5u);
@@ -199,7 +199,7 @@ static void demo_led (const app_demo_ctx_t *ctx)
     app_ui_kv(5u, "PA15", app_led_get(1u), 1u);
     app_ui_kv(6u, "PA12", app_led_get(2u), 1u);
     app_ui_kv(7u, "PA11", app_led_get(3u), 1u);
-    app_ui_line(8u, "ENTER=SWITCH MODE");
+    app_ui_line(8u, "ENTER=SWITCH");
 }
 
 static void demo_keys (const app_demo_ctx_t *ctx)
@@ -397,7 +397,7 @@ static void demo_ui_panel (const app_demo_ctx_t *ctx)
         uint8_t row = (uint8_t)(2u + i);
         app_ui_kv(row, tile_name[i], (s_counter >> i) & 0x01u, 1u);
     }
-    app_ui_line(7u, "ENTER=TOGGLE TILE");
+    app_ui_line(7u, "ENTER=TOGGLE");
     app_ui_line(8u, "BACK=EXIT DEMO");
 }
 
@@ -410,8 +410,8 @@ static void demo_menu_help (const app_demo_ctx_t *ctx)
     s_last_ms = ctx->now_ms;
 
     app_ui_demo_frame("10-MENU 3 LEVEL", ctx->status);
-    app_ui_line(2u, "MAIN > PARAM > EDIT");
-    app_ui_line(3u, "MAIN > DEMO  > RUN");
+    app_ui_line(2u, "MAIN>PARAM>EDIT");
+    app_ui_line(3u, "MAIN>DEMO>RUN");
     app_ui_line(4u, "MAIN > SYSTEM");
     app_ui_line(6u, "PARAMS SAVED IN");
     app_ui_line(7u, "FLASH S63 P0/P1");

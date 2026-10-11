@@ -22,6 +22,8 @@ int main (void)
         { "app_params", test_params },
         { "app_menu",   test_menu   },
         { "app_key",    test_key    },
+        { "app_text",   test_text   },
+        { "app_ui",     test_ui     },
     };
     unsigned int i;
     int          result = 0;

@@ -3,6 +3,7 @@
 * 说明              屏幕驱动层实现（逐飞 tft180 设备驱动，默认硬件 SPI + 本板引脚）
 ********************************************************************************************************************/
 #include "app_screen.h"
+#include "app_text.h"
 #include "zf_common_headfile.h"
 
 static uint8_t s_ready = 0u;
@@ -33,8 +34,18 @@ void app_screen_fill (uint16_t color)
 
 void app_screen_text (uint8_t col, uint8_t row, const char *s)
 {
+    char    line[APP_SCREEN_COLS + 1u];
+
+    /* tft180_show_string() 不会换行：超过 (16 - col) 个字符就会把 x 推到 128 触发 tft180.c:409 断言 */
+    if((col >= APP_SCREEN_COLS) || (row >= APP_SCREEN_ROWS))
+    {
+        return;
+    }
+
+    app_text_clip(line, (uint8_t)sizeof(line), s, (uint8_t)(APP_SCREEN_COLS - col));
+
     tft180_set_color(APP_SCREEN_FG_COLOR, APP_SCREEN_BG_COLOR);
-    tft180_show_string((uint16)((uint16)col * 8u), (uint16)((uint16)row * APP_SCREEN_ROW_H), s);
+    tft180_show_string((uint16)((uint16)col * 8u), (uint16)((uint16)row * APP_SCREEN_ROW_H), line);
 }
 
 void app_screen_clear_row (uint8_t row)
@@ -52,9 +63,18 @@ void app_screen_clear_row (uint8_t row)
 
 void app_screen_row_text (uint8_t row, uint16_t color, const char *s)
 {
+    char line[APP_SCREEN_COLS + 1u];
+
+    if(row >= APP_SCREEN_ROWS)
+    {
+        return;
+    }
+
+    app_text_clip(line, (uint8_t)sizeof(line), s, APP_SCREEN_COLS);    /* 整行最多 16 列 */
+
     app_screen_clear_row(row);
     tft180_set_color(color, APP_SCREEN_BG_COLOR);
-    tft180_show_string(0u, (uint16)((uint16)row * APP_SCREEN_ROW_H), s);
+    tft180_show_string(0u, (uint16)((uint16)row * APP_SCREEN_ROW_H), line);
     tft180_set_color(APP_SCREEN_FG_COLOR, APP_SCREEN_BG_COLOR);
 }
 

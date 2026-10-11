@@ -9,8 +9,10 @@
 CC      ?= gcc
 CFLAGS  ?= -std=gnu11 -O1 -Wall -Wextra -DAPP_HOST_TEST -I../User
 USER    := ../User
-SRC     := test_main.c test_crc32.c test_params.c test_menu.c test_key.c \
-           $(USER)/app_crc32.c $(USER)/app_params.c $(USER)/app_menu.c $(USER)/app_key.c
+SRC     := test_main.c test_crc32.c test_params.c test_menu.c test_key.c test_text.c test_ui.c \
+           stub_screen.c stub_time.c \
+           $(USER)/app_crc32.c $(USER)/app_params.c $(USER)/app_menu.c $(USER)/app_key.c \
+           $(USER)/app_text.c $(USER)/app_ui.c
 OUT     := host_test.exe
 
 .PHONY: all build run clean

@@ -153,18 +153,15 @@ static void app_ui_draw_status (const app_ui_status_t *st)
         return;
     }
 
+    /* 状态栏必须 <= 16 列（128 像素 / 8 像素）："#1 L15 E999 T999" 刚好 16 列 */
     ui_str_copy(buf, (uint8_t)sizeof(buf), "#");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->task_no, 1u);
+    ui_u32_append(buf, (uint8_t)sizeof(buf), st->task_no % 10u, 1u);
     ui_str_append(buf, (uint8_t)sizeof(buf), " L");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->led_mask, 1u);
+    ui_u32_append(buf, (uint8_t)sizeof(buf), st->led_mask, 2u);
     ui_str_append(buf, (uint8_t)sizeof(buf), " E");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->exti_count % 1000u, 1u);
+    ui_u32_append(buf, (uint8_t)sizeof(buf), st->exti_count % 1000u, 3u);
     ui_str_append(buf, (uint8_t)sizeof(buf), " T");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->isr_toggles % 1000u, 1u);
-    ui_str_append(buf, (uint8_t)sizeof(buf), " F");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->flash_slot, 1u);
-    ui_str_append(buf, (uint8_t)sizeof(buf), " ");
-    ui_u32_append(buf, (uint8_t)sizeof(buf), st->flash_seq % 10000u, 1u);
+    ui_u32_append(buf, (uint8_t)sizeof(buf), st->isr_toggles % 1000u, 3u);
 
     app_screen_row_text(APP_UI_ROW_STATUS, APP_COLOR_RED, buf);
 }
@@ -236,11 +233,12 @@ void app_ui_render (const app_menu_t *m, const app_params_t *p, const app_ui_sta
     if(app_menu_is_editing(m))
     {
         uint8_t id = (m->edit_id < APP_PARAM_NUM) ? m->edit_id : 0u;
-        ui_str_copy(detail, (uint8_t)sizeof(detail), "min");
+        /* 编辑态提示改用紧凑的 "min-max/step"，保证不超过 16 列 */
+        ui_str_copy(detail, (uint8_t)sizeof(detail), "");
         ui_u32_append(detail, (uint8_t)sizeof(detail), app_param_meta[id].min, 1u);
-        ui_str_append(detail, (uint8_t)sizeof(detail), " max");
+        ui_str_append(detail, (uint8_t)sizeof(detail), "-");
         ui_u32_append(detail, (uint8_t)sizeof(detail), app_param_meta[id].max, 1u);
-        ui_str_append(detail, (uint8_t)sizeof(detail), " step");
+        ui_str_append(detail, (uint8_t)sizeof(detail), "/");
         ui_u32_append(detail, (uint8_t)sizeof(detail), app_param_meta[id].step, 1u);
         app_screen_row_text(APP_UI_ROW_DETAIL, APP_COLOR_GREEN, detail);
     }
