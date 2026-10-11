@@ -5,15 +5,90 @@
 - **IDE**：MounRiver Studio 2（VS Code 内核，自带 RISC-V GCC 8.2.0 与 WCH OpenOCD）
 - **芯片**：CH32V307VCT6（青稞 V4F，RV32IMAFC，256K Flash / 64K SRAM 标称）
 - **已内含**：逐飞科技 CH32V307 开源库 **V3.7.2**（`zf_common` / `zf_driver` / `zf_device` / `zf_components`）
-- **实测构建**：`text 22964 / data 264 / bss 2700`，**0 error / 0 warning**
+- **实测构建**：模板原始为 `text 22964 / data 264 / bss 2700`；**加入本文档描述的考核固件后为
+  `text 46320 / data 304 / bss 4136`（sources 100），0 error / 0 warning**
+
+> 本仓库现在不只是模板：`User\` 下已经落了一份**软件组一轮考核固件** ——
+> 用**一份程序**覆盖细则第 3～11 项（GPIO / 按键 / PWM / 蜂鸣器 / 定时器中断 / SPI 屏 /
+> Flash 掉电存储 / 外部中断 / UI / 三级菜单），**全程靠板上按键切换，不需要重新烧录**。
+> 说明见 [§ 软件一轮考核固件](#软件一轮考核固件一份程序不重新烧录)，细节见 [`docs/`](docs/)。
+
+---
+
+## 软件一轮考核固件（一份程序，不重新烧录）
+
+### 上电后会发生什么
+
+1. 初始化外设 → 应用 Flash 里的参数 → 跑一遍**自检 8 项**（结果同时打在屏幕上和 UART3 日志里）
+2. 停在**三级菜单**主页面：`DEMO` / `PARAMETERS` / `SYSTEM`
+
+### 按键（板上 74HC148 + 五向开关）
+
+| 操作 | 事件 | 菜单里做什么 |
+|---|---|---|
+| 五向 **中键** | `ENTER` | 进入下一级 / 提交编辑 |
+| 五向 **下** | `DOWN` | 光标下移 / 参数减 |
+| 五向 **左** | `BACK` | 返回上一级 / 取消编辑 |
+| 五向 **右** | `INC` | 参数加 |
+| **KEY1** | `UP` | 光标上移 / 参数减（代偿不可用的"上"方向） |
+| **KEY2 短按** | `DEC` | 光标上移 / 参数减 |
+| **KEY2 长按** | — | **保存参数到 Flash** |
+| **KEY1 长按** | — | 直接回到主菜单 |
+
+> ⚠️ 五向开关的"上"在硬件上与"无键"编码相同（`111`，优先编码器 `GS/EO` 未接 MCU），
+> 因此固件用 `KEY1` 承担"上"的职责。原因与真值表见 [`docs/PINMAP.md`](docs/PINMAP.md)。
+
+### 功能与细则对应
+
+| 菜单 | 覆盖细则 | 现场观察 |
+|---|---|---|
+| `DEMO → LED` | 3 GPIO 控制 LED | 4 个可控 LED（LED5–LED8 = PD1/PA15/PA12/PA11）流水/全亮/全灭 |
+| `DEMO → KEYS` | 4 读取按键 | 屏幕显示编码、键名、按键计数 |
+| `DEMO → PWM OUT` | 5 PWM | H1 接口（PC6/PD14/PD15）自动扫频，可接示波器 |
+| `DEMO → BUZZER` | 5 无源蜂鸣器 | 2.731kHz 方波鸣叫 |
+| `DEMO → TIMER LED` | 6 定时器中断控 LED | LED6 周期亮灭，**翻转发生在 TIM6 中断里** |
+| `DEMO → SCREEN` | 7 SPI 屏 | ST7735 1.8" 文字 + 进度条 |
+| `DEMO → FLASH R/W` | 8 Flash 保存/读取 | 槽位、序号、保存次数、上电次数、CRC 校验结果 |
+| `DEMO → EXTI KEY` | 9 外部中断 | PD8 双边沿中断计数、实时电平 |
+| `DEMO → UI PANEL` | 9 屏幕 UI 交互 | 4 个 tile 随按键变化 |
+| `DEMO → MENU` / `PARAMETERS` | 10 多级菜单记录参数 | `L1/L2/L3` 层级、8 个参数编辑、断电后仍在 |
+| 全部 | 11 不重新烧录 | 只用板上按键完成以上所有项 |
+| 仓库提交历史 | 12 git | `git log --oneline` |
+
+### 构建与自测
+
+```cmd
+:: 目标端（等价于 MounRiver Build，不开 IDE）
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1
+::   → sources 100 / errors 0 / warnings 0，产物 obj\CH32V307VCT.elf|.hex|.map
+
+:: 主机端单元测试（纯逻辑模块：CRC32 / 参数存储 / 菜单 / 按键状态机）
+powershell -NoProfile -ExecutionPolicy Bypass -File host_test\run_tests.ps1
+::   → ---- checks: 1671, failures: 0 ----  RESULT: PASS
+```
+
+烧写：用 WCH-LinkUtility 烧 `obj\CH32V307VCT.hex`，或 MounRiver 里直接 Download。
+串口日志：**UART3 PB10(TX)/PB11(RX) @115200**。
+
+### 文档索引
+
+| 文件 | 内容 |
+|---|---|
+| [`docs/DESIGN.md`](docs/DESIGN.md) | 分层设计、任务→代码映射、设计决策与已知限制 |
+| [`docs/PINMAP.md`](docs/PINMAP.md) | 全 100 脚对照表、LED/按键真值表、硬件缺陷与对策、存储布局 |
+| [`docs/BUILD.md`](docs/BUILD.md) | 编译 / 烧录 / 单测步骤与实测数据 |
+| [`docs/DEFENSE.md`](docs/DEFENSE.md) | 现场答辩手册：学习路径、代码结构、逐条演示剧本、高频问答、盲盒模块清单 |
+| [`SEEKFREE_MOUNRIVER_PLAN.md`](SEEKFREE_MOUNRIVER_PLAN.md) | 逐飞库接入过程与踩坑记录 |
 
 ---
 
 ## 快速开始
 
 ```cmd
-git clone https://github.com/FZZZZZZZZZ19/CH32.git
+git clone https://github.com/FZZZZZZZZZ19/CH32-for-test.git
 ```
+
+> 原始模板仓库是 <https://github.com/FZZZZZZZZZ19/CH32>（本仓库由它派生并加入考核固件）。
 
 1. 用 **MounRiver Studio 2** 打开 `CH32` 目录（`File → Open Folder`）
 2. `Project → Clean`
@@ -29,19 +104,25 @@ git clone https://github.com/FZZZZZZZZZ19/CH32.git
 ## 第一次上手
 
 ```c
-/* User/main.c 已经写好的最小示例 */
+/* User/main.c —— 现在只有 26 行，所有功能都在 User/app_*.c 里 */
 #include "zf_common_headfile.h"
+#include "app_main.h"
 
 int main(void)
 {
-    clock_init(SYSTEM_CLOCK_144M);   // 144MHz
-    debug_init();                    // 调试串口
+    clock_init(SYSTEM_CLOCK_144M);      /* 144MHz */
+    debug_init();                       /* 调试串口，必须保留 */
 
-    printf("\r\nready, system_clock = %d MHz\r\n", system_clock / 1000000);
+    app_main_init();                    /* 板级初始化 + flash 参数 + 自检 + 进上电功能 */
 
-    while (1) { }
+    while (1)
+    {
+        app_main_loop();                /* 按键 / 菜单 / 演示 / 界面 调度 */
+    }
 }
 ```
+
+> 想要**模板原始的最小示例**（空的 `while(1)`）见 git 历史里加入考核固件之前的提交。
 
 **接线（WCH-LinkE）**
 
@@ -65,9 +146,24 @@ int main(void)
 
 ```
 CH32\
-├── User\                      应用层 —— 你的代码写在这里
-│   ├── main.c                 入口
-│   ├── zf_isr.c               逐飞中断服务函数（约 50 个 *_IRQHandler）
+├── User\                      应用层 —— 考核固件全部在这里（app_* 共 29 个文件 3247 行）
+│   ├── main.c                 入口：clock_init + debug_init + app_main_init + 主循环（26 行）
+│   ├── zf_isr.c               逐飞中断服务函数（TIM6 1ms 节拍 / EXTI9_5 按键中断已接好）
+│   ├── app_config.h           全部常量：版本、任务周期、8 个参数的范围/步进/存储位置
+│   ├── app_main.c/.h          调度器与模式管理（菜单态 / 演示态）
+│   ├── app_port.c/.h          板级绑定：LED/按键输入/PWM/蜂鸣器/背光/EXTI（唯一引脚事实源）
+│   ├── app_time.c/.h          1ms 软件节拍
+│   ├── app_key.c/.h           按键状态机：74HC148 编码 → 消抖 / 短按 / 长按 / 连发
+│   ├── app_led.c/.h           4 路 LED：常亮/熄灭/软件闪烁/中断闪烁/流水灯/二进制
+│   ├── app_pwm.c/.h           3 路 PWM：统一频率、独立占空比、自动扫频
+│   ├── app_buzzer.c/.h        无源蜂鸣器：任意频率 + 定时关闭
+│   ├── app_screen.c/.h        1.8" ST7735 屏：文本/清行/进度条/背光/色带自检
+│   ├── app_ui.c/.h            屏幕界面：标题/列表/详情/状态行
+│   ├── app_menu.c/.h          三级菜单状态机
+│   ├── app_params.c/.h        8 个参数 + 44 字节块 + A/B 双槽 + Flash 存取
+│   ├── app_crc32.c/.h         CRC-32/ISO-HDLC
+│   ├── app_demo.c/.h          11 个演示功能
+│   ├── app_selftest.c/.h      上电自检 8 项
 │   ├── ch32v30x_it.c          NMI / HardFault
 │   ├── system_ch32v30x.c      系统时钟 / FLASH-RAM 分区
 │   └── ch32v30x_conf.h        外设库配置头
@@ -80,10 +176,16 @@ CH32\
 ├── zf_driver\      (32 文件)  逐飞外设驱动层
 ├── zf_device\      (58 文件)  逐飞器件驱动层（含 libzf_device_config.a）
 ├── zf_components\  ( 4 文件)  逐飞应用组件（逐飞助手）
+├── host_test\                 主机端单元测试（PC 上 gcc 直接跑，1671 项断言）
+├── tools\build.ps1            不开 IDE 的等价编译脚本
+├── docs\                      DESIGN / PINMAP / BUILD / DEFENSE
 ├── LICENSES\                  第三方许可说明与 GPL-3.0 全文
 ├── .cproject .project .launch  MounRiver 工程定义
 └── SEEKFREE_MOUNRIVER_PLAN.md 接入过程记录（含踩坑与回滚方式）
 ```
+
+> `docs\` `host_test\` `tools\` 是给 PC 用的，已在 `.cproject` 根 sourceEntry 的
+> `excluding=` 里排除，MounRiver 不会递归编译它们。
 
 **所有驱动都已经参与编译** —— `Peripheral\src` 下 27 个 WCH 驱动、以及
 `zf_driver` / `zf_device` 下全部逐飞驱动都在构建里，你**直接调用 API 即可**，
@@ -159,8 +261,8 @@ CH32V30x 支持多种切分：`192K+128K` / `224K+96K` / **`256K+64K`** / `288K+
 
 ## 怎么写自己的代码
 
-1. **加功能**：直接在 `User\main.c` 的 `while(1)` 里写，或新建 `User\xxx.c`
-   （`User` 目录下的 `.c` 会自动纳入构建）
+1. **加功能**：在 `User\app_demo.c` 里加一个演示，或新建 `User\xxx.c`
+   （`User` 目录下的 `.c` 会自动纳入构建）；`User\main.c` 只保留初始化和主循环
 2. **用逐飞驱动**：`#include "zf_common_headfile.h"` 后直接调用，例如
    ```c
    gpio_init(P20_0, GPO, 0, GPO_PUSH_PULL);
@@ -198,12 +300,15 @@ git clone --depth 1 https://gitee.com/seekfree/CHV307_Library.git %TEMP%\CHV307
 
 | 项 | 状态 |
 |---|---|
-| 编译 | ✅ 已在 MounRiver Studio 2 实测通过（0 error / 0 warning） |
+| 编译 | ✅ 已在 MounRiver Studio 2 实测通过；考核固件另有 `tools\build.ps1` 实测 `sources 100 / 0 error / 0 warning` |
+| 主机端单元测试 | ✅ CRC32 / 参数存储 / 菜单 / 按键状态机 4 组，`checks: 1671, failures: 0` |
 | 链接（含逐飞预编译库） | ✅ 无 ABI 冲突、无重复定义 |
 | 中断向量表 | ✅ `.vector` 位于 0x4，入口 0x0 |
-| **实际烧写 / 上板运行** | ❌ **未验证**（制作此模板时手上无硬件） |
+| **实际烧写 / 上板运行** | ❌ **未验证**（写这份代码时手上无硬件，所有引脚结论来自原理图判读） |
+| 五向开关"上"方向 | ⚠️ 硬件上与"无键"同编码，不可用（详见 `docs/PINMAP.md`） |
+| 可控 LED | ⚠️ 只有 4 个（LED1–LED4 是电源指示灯） |
 | LTO | 未启用（MounRiver 默认构建不含 LTO） |
-| 32K RAM | ⚠️ 够当前代码；摄像头图像缓冲需重新评估分区 |
+| 32K RAM | ⚠️ 考核固件 bss 4136B，够用；摄像头图像缓冲需重新评估分区 |
 
 ---
 
