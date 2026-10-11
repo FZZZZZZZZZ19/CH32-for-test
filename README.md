@@ -67,7 +67,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File host_test\run_tests.ps1
 ::   → ---- checks: 1671, failures: 0 ----  RESULT: PASS
 ```
 
-烧写：用 WCH-LinkUtility 烧 `obj\CH32V307VCT.hex`，或 MounRiver 里直接 Download。
+烧写（两条路都实测过）：
+
+* **WCH-Link + SWD**：用 WCH-LinkUtility 烧 `obj\CH32V307VCT.hex`，或 MounRiver 里直接 Download（接板上 H4：SWCLK=PA14、SWDIO=PA13、3.3V_MAIN、GND）。
+* **只有 Type-C、没有 WCH-Link**：按住板上 BOOT 键 `SW16` → 按一下复位键 `SW17` 让芯片进 ISP，
+  然后 `powershell -NoProfile -ExecutionPolicy Bypass -File tools\flash_usb.ps1`（实测 47104 字节写入 + Verify OK）。
+  详见 [`docs/BUILD.md` §1.3](docs/BUILD.md)。
+
 串口日志：**UART3 PB10(TX)/PB11(RX) @115200**。
 
 ### 文档索引

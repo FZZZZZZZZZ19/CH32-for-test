@@ -52,12 +52,55 @@ text      data    bss     dec     hex
 > 若换用其它工具链或改 `Ld/Link.ld` 的 FLASH/RAM 分区，**必须同步修改** `User/system_ch32v30x.c`
 > 里的分区常量，否则 Flash 读写地址会算错。
 
-### 1.3 烧录（hex）
+### 1.3 烧录
+
+#### 方式 A：WCH-Link + SWD（最省事）
 
 ```powershell
-# WCH-LinkUtility（图形界面）或命令行：选择 obj\CH32V307VCT.hex 下载
-# MounRiver 自带下载也可；芯片型号选 CH32V307VCT6，接口 SWD
+# WCH-LinkUtility（图形界面）或 MounRiver 下载：选择 obj\CH32V307VCT.hex
+# 芯片型号 CH32V307VCT6，接口 SWD，接线走板上 H4：
+#   SWCLK = PA14 / SWDIO = PA13 / 3.3V_MAIN / GND
+# 该方式不需要按住任何按键。
 ```
+
+#### 方式 B：只用主板自己的 Type-C 口（无 WCH-Link，实测可用）
+
+原理（原理图 BOOT 区）：`BOOT0 —20Ω— SW16 — 3.3V_MAIN`，**按住 SW16 即把 BOOT0 拉高**；
+复位后芯片进入出厂 ISP bootloader，在 USB 上枚举为 `VID_4348&PID_55E0`，
+此时可以通过 Type-C 数据口烧录（和 WCH 官方评估板的 "Download 按键 + USB" 是一回事）。
+
+```powershell
+# 1) 按住板上 BOOT/下载 键 SW16 不放
+# 2) 按一下复位键 SW17（板上没有复位键时：按住 SW16 拔插一次 Type-C）
+# 3) 在仓库根目录执行（脚本会自己等设备出现）
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\flash_usb.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\flash_usb.ps1 -Probe   # 只探测不烧录
+# 4) 烧完松开 SW16、按一下 SW17，固件即开始运行
+```
+
+脚本用的是 `wchisp`（Rust 写的 ISP 命令行工具），**必须用 nightly 构建**：正式版 v0.3.0 只支持
+libusb/WinUSB 驱动，而本机装的是 WCH 官方驱动，v0.3.0 会报
+`Failed to open USB device ... It's likely no WinUSB/LibUSB drivers installed`。nightly 构建可直接用官方驱动：
+
+```
+下载 https://github.com/ch32-rs/wchisp/releases/download/nightly/wchisp-win-x64.zip
+解压到 tools\wchisp-nightly\wchisp-win-x64\wchisp.exe（该目录已被 .gitignore 忽略，不入库）
+```
+
+**实测结果（本机，2026-10-11，CH32V307VCT6，bootloader 02.90）**
+
+```
+Chip: CH32V307VCT6[0x7017] (Code Flash: 256KiB)   Chip UID: 98-4D-79-5E-0C-D0-1D-7C
+Read obj\CH32V307VCT.hex as IntelHex format      Firmware size: 47104
+Erasing... Erased 47 code flash sectors
+Writing to code flash... Code flash 47104 bytes written
+Verifying... Verify OK
+Device reset
+```
+
+> 注意：本板 Type-C 的 `USB-N/USB-P` 与 MCU 的 PA11/PA12（固件里是 LED7/LED8）是同一对网络，
+> 运行期间插着 Type-C 会让 LED 网络给 USB 信号加负载 —— 烧完建议拔掉线，下次烧录再插上。
+> 若设备管理器里出现带感叹号的 WCH 设备，先装驱动：`D:\Toolchains\wch-linkutility\WCH-LinkUtility\Drv_Link\CH372DRV_S.exe`。
 
 ### 1.4 串口（观察运行日志）
 
